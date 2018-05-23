@@ -1,0 +1,6 @@
+.vscode
+*.pyc
+.DS_Store
+*.mid
+*.midi
+*.sess
