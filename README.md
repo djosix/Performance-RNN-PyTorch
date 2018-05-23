@@ -50,9 +50,9 @@ This model is not implemented in the official way!
 
 - Generating
     ```shell
-    py generate.py \
+    python3 generate.py \
         myModel.sess \  # load trained model from myModel.sess
-        generated/ \  # save to generated/
+        generated/ \    # save to generated/
         10 \            # generate 10 event sequences
         2000 \          # generate 2000 event steps
         0.9 \           # 90% sampling with argmax and 10% multinomial
@@ -60,7 +60,7 @@ This model is not implemented in the official way!
         3               # note density (0-5)
     ```
 
-# Requirements
+## Requirements
 
 ```
 pretty_midi
