@@ -14,3 +14,7 @@ for page in $pages; do
         echo "http://www.piano-midi.de/$midi"
     done | tee /dev/stderr | wget -P $dir -i -
 done
+cd $dir
+ls | egrep -v -i '\.mid$' | xargs rm
+file * | grep -v 'Standard MIDI' | awk -F ':' '{print $1}' | xargs rm
+

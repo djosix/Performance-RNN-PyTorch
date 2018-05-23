@@ -10,6 +10,11 @@ do url=$(curl -s "$url" \
     | egrep -o '[^"]+?\.mid' \
     | egrep '^/' \
     | grep -v '%' \
-    | sed 's/^/https:/g');
+    | sed 's/^/https:/g' \
+    | uniq);
 echo $url | tee /dev/stderr
 done | uniq | wget -P $dir -i -
+cd $dir
+ls | egrep -i -v '\.mid$' | xargs rm
+file * | grep -v 'Standard MIDI' | awk -F ':' '{print $1}' | xargs rm
+
