@@ -2,7 +2,7 @@ import os
 import torch
 import itertools
 import numpy as np
-import random
+from progress.bar import Bar
 
 import config
 import utils
@@ -12,18 +12,20 @@ from sequence import EventSeq, ControlSeq
 # pylint: disable=W0101
 
 class Dataset:
-    def __init__(self, root):
+    def __init__(self, root, verbose=False):
         paths = utils.find_files_by_extensions(root, ['.data'])
         self.root = root
         self.samples = []
         self.seqlens = []
+        if verbose:
+            paths = Bar(root).iter(list(paths))
         for path in paths:
             eventseq, controlseq = torch.load(path)
             controlseq = ControlSeq.recover_compressed_array(controlseq)
             assert len(eventseq) == len(controlseq)
             self.samples.append((eventseq, controlseq))
             self.seqlens.append(len(eventseq))
-        self.avglen = sum(map(len, self.samples)) / len(self.samples)
+        self.avglen = np.mean(self.seqlens)
     
     def batches(self, batch_size, window_size, stride_size):
         indeces = [(i, range(j, j + window_size))
@@ -51,4 +53,4 @@ class Dataset:
     def __repr__(self):
         return (f'Dataset(root={self.root}, '
                 f'samples={len(self.samples)}, '
-                f'avglen={self.average_length})')
+                f'avglen={self.avglen})')
