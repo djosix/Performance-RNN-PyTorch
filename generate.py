@@ -1,11 +1,10 @@
 import torch
 import numpy as np
-import os, sys
+import os, sys, optparse
 
 import config, utils
 from config import device, model as model_config
 from model import PerformanceRNN
-from data import Dataset
 from sequence import EventSeq, Control, ControlSeq
 
 # pylint: disable=E1101,E1102
@@ -15,43 +14,100 @@ from sequence import EventSeq, Control, ControlSeq
 # Settings
 #========================================================================
 
+def getopt():
+    parser = optparse.OptionParser()
+
+    parser.add_option('-c', '--control',
+                      dest='control',
+                      default=None,
+                      help=('control or a processed data file path, '
+                            'e.g., "PITCH_HISTOGRAM;NOTE_DENSITY" like '
+                            '"2,0,1,1,0,1,0,1,1,0,0,1;4", or '
+                            '";3" (which gives all pitches the same probability), '
+                            'or "/path/to/processed/midi/file.data" '
+                            '(uses control sequence from the given processed data)'))
+
+    parser.add_option('-b', '--batch-size',
+                      dest='batch_size',
+                      default=8)
+
+    parser.add_option('-s', '--session',
+                      dest='sess_path',
+                      default='train.sess',
+                      help='session file containing the trained model')
+
+    parser.add_option('-o', '--output-dir',
+                      dest='output_dir',
+                      default='generated/')
+
+    parser.add_option('-l', '--max-length',
+                      dest='max_len',
+                      default=0)
+
+    parser.add_option('-g', '--greedy-ratio',
+                      dest='greedy_ratio',
+                      default=1.0)
+
+    return parser.parse_args()[0]
+
+
+opt = getopt()
+
+#------------------------------------------------------------------------
+
 event_dim = EventSeq.dim()
-save_dir = sys.argv[1]
-load_path = sys.argv[2]
-batch_size = int(sys.argv[3])
-steps = int(sys.argv[4])
-greedy = float(sys.argv[5])
+output_dir = opt.output_dir
+sess_path = opt.sess_path
+batch_size = int(opt.batch_size)
+max_len = int(opt.max_len)
+greedy_ratio = float(opt.greedy_ratio)
+control = opt.control
 
-print('=' * 50)
-print('Model:', load_path)
-print('Batch size:', batch_size)
-print('Steps:', steps)
-print('Greedy:', greedy)
+assert os.path.isfile(sess_path), f'{sess_path} should exist'
 
-try:
-    pitch_probs = [s for s in sys.argv[6].split(',') if s]
-    
-    if not pitch_probs:
-        pitch_probs = [0.] * 12
+if control is not None:
+    if os.path.isfile(control):
+        _, compressed_controls = torch.load(control)
+        controls = ControlSeq.recover_compressed_array(compressed_controls)
+        if max_len == 0:
+            max_len = controls.shape[0]
+        controls = torch.tensor(controls)
+        controls = controls.unsqueeze(1).repeat(1, batch_size, 1).to(device)
+        control = f'control sequence from {control}'
+
     else:
-        pitch_probs = list(map(float, pitch_probs))
-        assert len(pitch_probs) == 12
-    
-    pitch_probs = np.array(pitch_probs)
-    if pitch_probs.sum() != 0:
-        pitch_probs = pitch_probs / pitch_probs.sum()
-    
-    density = int(sys.argv[7])
-    assert density in range(len(ControlSeq.note_density_bins))
+        pitch_histogram, note_density = control.split(';')
+        pitch_histogram = list(filter(len, pitch_histogram.split(',')))
+        if len(pitch_histogram) == 0:
+            pitch_histogram = np.ones(12) / 12
+        else:
+            pitch_histogram = np.array(list(map(float, pitch_histogram)))
+            assert pitch_histogram.size == 12
+            assert np.all(pitch_histogram >= 0)
+            pitch_histogram = pitch_histogram / pitch_histogram.sum() \
+                              if pitch_histogram.sum() else np.ones(12) / 12
+        note_density = int(note_density)
+        assert note_density in range(len(ControlSeq.note_density_bins))
+        control = Control(pitch_histogram, note_density)
+        controls = torch.tensor(control.to_array(), dtype=torch.float32)
+        controls = controls.repeat(1, batch_size, 1).to(device)
+        control = repr(control)
 
-    print('Pitch histogram:', pitch_probs)
-    print('Note density:', density)
-    conditioning = True
+else:
+    controls = None
+    control = 'no control'
 
-except:
-    conditioning = False
+assert max_len > 0, 'either max length or control sequence length should be given'
 
-print('=' * 50)
+#------------------------------------------------------------------------
+
+print('Session:', sess_path)
+print('Batch size:', batch_size)
+print('Max length:', max_len)
+print('Greedy ratio:', greedy_ratio)
+print('Output directory:', output_dir)
+print('Controls:', control)
+print('-' * 50)
 
 
 #========================================================================
@@ -59,16 +115,10 @@ print('=' * 50)
 #========================================================================
 
 model = PerformanceRNN(**model_config).to(device)
-model.load_state_dict(torch.load(load_path)['model'])
-
-if conditioning:
-    controls = utils.make_controls(batch_size, pitch_probs, density, steps=1)
-    controls = torch.FloatTensor(controls).to(device)
-else:
-    controls = None
+model.load_state_dict(torch.load(sess_path)['model'])
 
 init = torch.randn(batch_size, model.init_dim).to(device)
-outputs = model.generate(init, steps, controls=controls, greedy=greedy) # [steps, batch]
+outputs = model.generate(init, max_len, controls=controls, greedy=greedy_ratio)
 outputs = outputs.cpu().numpy().T # [batch, steps]
 
 
@@ -76,10 +126,11 @@ outputs = outputs.cpu().numpy().T # [batch, steps]
 # Saving
 #========================================================================
 
-os.makedirs(save_dir, exist_ok=True)
+os.makedirs(output_dir, exist_ok=True)
 
 for i, output in enumerate(outputs):
     name = f'output-{i:03d}.mid'
-    path = os.path.join(save_dir, name)
+    path = os.path.join(output_dir, name)
     n_notes = utils.event_indeces_to_midi_file(output, path)
     print(path, f'{n_notes} notes')
+

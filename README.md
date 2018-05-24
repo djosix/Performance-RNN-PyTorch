@@ -31,18 +31,21 @@ This model is not implemented in the official way!
 ## Getting Started
 
 - Download datasets
+
     ```
     cd dataset/
     bash scripts/NAME_scraper.sh midi/NAME
     ```
 
 - Preprocessing
+
     ```shell
     # Will preprocess all MIDI files under dataset/midi/NAME
     python3 preprocess.py dataset/midi/NAME dataset/processed/NAME
     ```
 
 - Training
+
     ```shell
     # Train on .data files in dataset/processed/MYDATA,
     # and save to myModel.sess every 10s.
@@ -50,16 +53,41 @@ This model is not implemented in the official way!
     ```
 
 - Generating
+
+    For usage, see `python3 generate.py -h`.
+
     ```shell
-    python3 generate.py \
-        myModel.sess \  # load trained model from myModel.sess
-        generated/ \    # save to generated/
-        10 \            # generate 10 event sequences
-        2000 \          # generate 2000 event steps
-        0.9 \           # 90% sampling with argmax and 10% multinomial
-        '1,0,1,0,1,1,0,1,0,1,0,1' \ # pitch histogram ([12] or [0])
-        3               # note density (0-5)
+    Usage: generate.py [options]
+
+    Options:
+    -h, --help            show this help message and exit
+    -c CONTROL, --control=CONTROL
+                            control or a processed data file path, e.g.,
+                            "PITCH_HISTOGRAM;NOTE_DENSITY" like
+                            "2,0,1,1,0,1,0,1,1,0,0,1;4", or ";3" (which gives all
+                            pitches the same probability), or
+                            "/path/to/processed/midi/file.data" (uses control
+                            sequence from the given processed data)
+    -b BATCH_SIZE, --batch-size=BATCH_SIZE
+    -s SESS_PATH, --session=SESS_PATH
+                            session file containing the trained model
+    -o OUTPUT_DIR, --output-dir=OUTPUT_DIR
+    -l MAX_LEN, --max-length=MAX_LEN
+    -g GREEDY_RATIO, --greedy-ratio=GREEDY_RATIO
     ```
+
+    Generate with control sequence from test.data and model from test.sess:
+
+    ```shell
+    python3 generate.py -s test.sess -c test.data
+    ```
+
+    Generate with pitch histogram and note density (C major scale).
+
+    ```shell
+    python3 generate.py -s test.sess -l 1000 -c '1,0,1,0,1,1,0,1,0,1,0,1;3'
+    ```
+
 
 ## Requirements
 
