@@ -17,11 +17,10 @@ class Dataset:
         self.samples = []
         self.seqlens = []
         for path in paths:
-            for eventseq, controlseq in torch.load(path):
-                controlseq = ControlSeq.recover_compressed_array(controlseq)
-                self.samples.append((eventseq, controlseq))
-        for eventseq, controlseq in self.samples:
+            eventseq, controlseq = torch.load(path)
+            controlseq = ControlSeq.recover_compressed_array(controlseq)
             assert len(eventseq) == len(controlseq)
+            self.samples.append((eventseq, controlseq))
             self.seqlens.append(len(eventseq))
     
     def batches(self, batch_size, window_size, stride_size):

@@ -23,6 +23,7 @@ def preprocess_midi_files_under(midi_root, save_dir):
 
     for path in Bar('Processing').iter(midi_paths):
         print(' ', end='[{}]'.format(path), flush=True)
+
         try:
             data = preprocess_midi(path)
         except KeyboardInterrupt:
@@ -31,11 +32,15 @@ def preprocess_midi_files_under(midi_root, save_dir):
         except:
             print(' Error')
             continue
+
         name = os.path.basename(path)
         code = hashlib.md5(path.encode()).hexdigest()
         save_path = os.path.join(save_dir, out_fmt.format(name, code))
-        torch.save([data], save_path)
+        torch.save(data, save_path)
+
     print('Done')
 
 if __name__ == '__main__':
-    preprocess_midi_files_under(midi_root=sys.argv[1], save_dir=sys.argv[2])
+    preprocess_midi_files_under(
+            midi_root=sys.argv[1],
+            save_dir=sys.argv[2])
