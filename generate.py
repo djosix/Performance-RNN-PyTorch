@@ -19,6 +19,7 @@ def getopt():
 
     parser.add_option('-c', '--control',
                       dest='control',
+                      type='string',
                       default=None,
                       help=('control or a processed data file path, '
                             'e.g., "PITCH_HISTOGRAM;NOTE_DENSITY" like '
@@ -29,23 +30,28 @@ def getopt():
 
     parser.add_option('-b', '--batch-size',
                       dest='batch_size',
+                      type='int',
                       default=8)
 
     parser.add_option('-s', '--session',
                       dest='sess_path',
+                      type='string',
                       default='train.sess',
                       help='session file containing the trained model')
 
     parser.add_option('-o', '--output-dir',
                       dest='output_dir',
+                      type='string',
                       default='generated/')
 
     parser.add_option('-l', '--max-length',
                       dest='max_len',
+                      type='int',
                       default=0)
 
     parser.add_option('-g', '--greedy-ratio',
                       dest='greedy_ratio',
+                      type='float',
                       default=1.0)
 
     return parser.parse_args()[0]
@@ -55,12 +61,11 @@ opt = getopt()
 
 #------------------------------------------------------------------------
 
-event_dim = EventSeq.dim()
 output_dir = opt.output_dir
 sess_path = opt.sess_path
-batch_size = int(opt.batch_size)
-max_len = int(opt.max_len)
-greedy_ratio = float(opt.greedy_ratio)
+batch_size = opt.batch_size
+max_len = opt.max_len
+greedy_ratio = opt.greedy_ratio
 control = opt.control
 
 assert os.path.isfile(sess_path), f'{sess_path} should exist'
@@ -71,7 +76,7 @@ if control is not None:
         controls = ControlSeq.recover_compressed_array(compressed_controls)
         if max_len == 0:
             max_len = controls.shape[0]
-        controls = torch.tensor(controls)
+        controls = torch.tensor(controls, dtype=torch.float32)
         controls = controls.unsqueeze(1).repeat(1, batch_size, 1).to(device)
         control = f'control sequence from {control}'
 
