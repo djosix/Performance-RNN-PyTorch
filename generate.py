@@ -106,6 +106,7 @@ assert max_len > 0, 'either max length or control sequence length should be give
 
 #------------------------------------------------------------------------
 
+print('-' * 50)
 print('Session:', sess_path)
 print('Batch size:', batch_size)
 print('Max length:', max_len)
