@@ -1,6 +1,7 @@
 # Performance RNN - PyTorch
 
-PyTorch implementation of Performance RNN, inspired by
+PyTorch implementation of Performance RNN, inspired by *Ian Simon and Sageev Oore. "Performance RNN: Generating Music with Expressive
+Timing and Dynamics." Magenta Blog, 2017.*
 [https://magenta.tensorflow.org/performance-rnn](https://magenta.tensorflow.org/performance-rnn).
 
 This model is not implemented in the official way!
