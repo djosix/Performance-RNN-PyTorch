@@ -14,6 +14,7 @@ from sequence import EventSeq, ControlSeq
 class Dataset:
     def __init__(self, root):
         paths = utils.find_files_by_extensions(root, ['.data'])
+        self.root = root
         self.samples = []
         self.seqlens = []
         for path in paths:
@@ -22,6 +23,7 @@ class Dataset:
             assert len(eventseq) == len(controlseq)
             self.samples.append((eventseq, controlseq))
             self.seqlens.append(len(eventseq))
+        self.avglen = sum(map(len, self.samples)) / len(self.samples)
     
     def batches(self, batch_size, window_size, stride_size):
         indeces = [(i, range(j, j + window_size))
@@ -45,3 +47,8 @@ class Dataset:
                     eventseq_batch.clear()
                     controlseq_batch.clear()
                     n = 0
+    
+    def __repr__(self):
+        return (f'Dataset(root={self.root}, '
+                f'samples={len(self.samples)}, '
+                f'avglen={self.average_length})')
