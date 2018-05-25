@@ -201,8 +201,6 @@ try:
             controls = None
 
         init = torch.randn(batch_size, model.init_dim).to(device)
-        init.requires_grad_() # start tracking the graph
-        
         outputs = model.generate(init, window_size, events[:-1], controls, output_type='logit')
         assert outputs.shape[:2] == events.shape[:2]
 
