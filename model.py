@@ -46,7 +46,7 @@ class PerformanceRNN(nn.Module):
         nn.init.xavier_normal_(self.output_fc.weight)
         self.output_fc.bias.data.fill_(0.)
 
-    def _sample_event(self, output, greedy=False):
+    def _sample_event(self, output, greedy=True):
         if greedy:
             return output.argmax(-1)
         else:
@@ -78,7 +78,7 @@ class PerformanceRNN(nn.Module):
         return output, hidden
 
     def generate_steps(self, init, steps, events=None, controls=None,
-                       greedy=0.0, output_type='index'):
+                       greedy=1.0, output_type='index'):
         # init [batch_size, init_dim]
         # events [steps, batch_size] indeces
         # controls [1 or steps, batch_size, control_dim]
