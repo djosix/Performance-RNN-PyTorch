@@ -71,7 +71,11 @@ control = opt.control
 assert os.path.isfile(sess_path), f'{sess_path} should exist'
 
 if control is not None:
-    if os.path.isfile(control):
+    if os.path.isfile(control) or os.path.isdir(control):
+        if os.path.isdir(control):
+            files = list(utils.find_files_by_extensions(control))
+            assert len(files) > 0, f'no file in {control}'
+            control = np.random.choice(files)
         _, compressed_controls = torch.load(control)
         controls = ControlSeq.recover_compressed_array(compressed_controls)
         if max_len == 0:
