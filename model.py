@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 import numpy as np
+from progress.bar import Bar
 from config import device
 
 # pylint: disable=E1101,E1102
@@ -128,8 +129,10 @@ class PerformanceRNN(nn.Module):
             if use_teacher_forcing and step < steps - 1: # avoid last one
                 event = events[step].unsqueeze(0)
 
-    def generate(self, *kargs, **kwargs):
-        outputs = list(self.generate_steps(*kargs, **kwargs))
-        outputs = torch.cat(outputs, 0)
+    def generate(self, *kargs, verbose=False, **kwargs):
+        steps = self.generate_steps(*kargs, **kwargs)
+        if verbose:
+            steps = Bar('Generating', max=kargs[1]).iter(steps)
+        outputs = torch.cat(list(steps), 0)
         return outputs
 

@@ -124,7 +124,7 @@ model = PerformanceRNN(**model_config).to(device)
 model.load_state_dict(torch.load(sess_path)['model'])
 
 init = torch.randn(batch_size, model.init_dim).to(device)
-outputs = model.generate(init, max_len, controls=controls, greedy=greedy_ratio)
+outputs = model.generate(init, max_len, verbose=True, controls=controls, greedy=greedy_ratio)
 outputs = outputs.cpu().numpy().T # [batch, steps]
 
 
@@ -138,5 +138,5 @@ for i, output in enumerate(outputs):
     name = f'output-{i:03d}.mid'
     path = os.path.join(output_dir, name)
     n_notes = utils.event_indeces_to_midi_file(output, path)
-    print(path, f'{n_notes} notes')
+    print(f'===> {path} ({n_notes} notes)')
 
