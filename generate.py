@@ -126,9 +126,15 @@ print('-' * 50)
 
 model = PerformanceRNN(**model_config).to(device)
 model.load_state_dict(torch.load(sess_path)['model'])
+model.eval()
+
+# Don't build the graph
+for parameter in model.parameters():
+    parameter.requires_grad_(False)
 
 init = torch.randn(batch_size, model.init_dim).to(device)
-outputs = model.generate(init, max_len, verbose=True, controls=controls, greedy=greedy_ratio)
+outputs = model.generate(init, max_len, verbose=True,
+                         controls=controls, greedy=greedy_ratio)
 outputs = outputs.cpu().numpy().T # [batch, steps]
 
 
