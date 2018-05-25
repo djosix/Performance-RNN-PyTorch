@@ -212,7 +212,7 @@ try:
         writer.add_scalar('loss', loss.item(), iteration)
 
         # norm = utils.compute_gradient_norm(model.parameters())
-        # nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         # writer.add_scalar('norm', norm.item(), iteration)
         
         optimizer.step()
