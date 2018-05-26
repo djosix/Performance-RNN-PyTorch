@@ -58,7 +58,7 @@ def get_options():
                       type='int',
                       default=config.train['window_size'])
 
-    parser.add_option('-z', '--stride-size',
+    parser.add_option('-S', '--stride-size',
                       dest='stride_size',
                       type='int',
                       default=config.train['stride_size'])
