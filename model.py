@@ -24,6 +24,8 @@ class PerformanceRNN(nn.Module):
         self.input_dim = hidden_dim
         self.output_dim = event_dim
 
+        self.primary_event = self.event_dim - 1
+
         self.inithid_fc = nn.Linear(init_dim, gru_layers * hidden_dim)
         self.inithid_fc_activation = nn.Tanh()
 
@@ -76,9 +78,26 @@ class PerformanceRNN(nn.Module):
         output = hidden.sum(0).unsqueeze(0)
         output = self.output_fc(output)
         return output, hidden
-
-    def generate_steps(self, init, steps, events=None, controls=None,
-                       greedy=1.0, output_type='index'):
+    
+    def init_to_hidden(self, init):
+        # [batch_size, init_dim]
+        batch_size = init.shape[0]
+        out = self.inithid_fc(init)
+        out = self.inithid_fc_activation(out)
+        out = out.view(self.gru_layers, batch_size, self.hidden_dim)
+        return out
+    
+    def expand_controls(self, controls, steps):
+        # [1 or steps, batch_size, control_dim]
+        assert len(controls.shape) == 3
+        assert controls.shape[2] == self.control_dim
+        if controls.shape[0] > 1:
+            assert controls.shape[0] >= steps
+            return controls[:steps]
+        return controls.repeat(steps, 1, 1)
+    
+    def generate(self, init, steps, events=None, controls=None,
+                 greedy=1.0, output_type='index', verbose=False):
         # init [batch_size, init_dim]
         # events [steps, batch_size] indeces
         # controls [1 or steps, batch_size, control_dim]
@@ -93,23 +112,18 @@ class PerformanceRNN(nn.Module):
             assert events.shape[0] >= steps - 1
             events = events[:steps-1]
 
+        event = torch.tensor([[self.primary_event] * batch_size]).to(device)
         use_control = controls is not None
         if use_control:
-            assert len(controls.shape) == 3
-            if controls.shape[0] > 1:
-                assert controls.shape[0] >= steps
-                controls = controls[:steps]
-            else:
-                controls = controls.repeat(steps, 1, 1)
-        
-        hidden = self.inithid_fc(init)
-        hidden = self.inithid_fc_activation(hidden)
-        hidden = hidden.view(self.gru_layers, batch_size, self.hidden_dim)
+            controls = self.expand_controls(controls, steps)
+        hidden = self.init_to_hidden(init)
 
-        primary_event_index = self.event_dim - 1
-        event = torch.tensor([[primary_event_index] * batch_size]).to(device)
+        outputs = []
+        step_iter = range(steps)
+        if verbose:
+            step_iter = Bar('Generating').iter(step_iter)
 
-        for step in range(steps):
+        for step in step_iter:
             control = controls[step].unsqueeze(0) if use_control else None
             output, hidden = self.forward(event, control, hidden)
 
@@ -117,22 +131,79 @@ class PerformanceRNN(nn.Module):
             event = self._sample_event(output, greedy=use_greedy)
 
             if output_type == 'index':
-                yield event
+                outputs.append(event)
             elif output_type == 'softmax':
-                yield self.output_fc_activation(output)
+                outputs.append(self.output_fc_activation(output))
             elif output_type == 'logit':
-                yield output
-            elif output_type == 'index_and_logit':
-                yield event, output
+                outputs.append(output)
             else:
                 assert False
+
             if use_teacher_forcing and step < steps - 1: # avoid last one
                 event = events[step].unsqueeze(0)
+        
+        return torch.cat(outputs, 0)
 
-    def generate(self, *kargs, verbose=False, **kwargs):
-        steps = self.generate_steps(*kargs, **kwargs)
+    def beam_search(self, init, steps, beam_size, controls=None, verbose=False):
+        assert len(init.shape) == 2 and init.shape[1] == self.init_dim
+        assert self.event_dim > beam_size > 0 and steps > 0
+        
+        batch_size = init.shape[0]
+        use_control = controls is not None
+        if use_control:
+            controls = self.expand_controls(controls, steps)
+
+        init = torch.randn(batch_size, self.init_dim).to(device)
+        hidden = self.init_to_hidden(init)
+        hidden = hidden.unsqueeze(2).repeat(1, 1, beam_size, 1)
+        # [gru_layers, batch_size, beam_size, hidden_dim]
+
+        event = torch.tensor([[self.primary_event] * batch_size]).to(device)
+        event = event.unsqueeze(-1).repeat(1, 1, beam_size)
+        # [1, batch_size, beam_size]
+
+        beam = torch.zeros(batch_size, beam_size, steps).long().to(device)
+        score = torch.zeros(batch_size, beam_size).to(device)
+        
+        step_iter = range(steps)
         if verbose:
-            steps = Bar('Generating', max=kargs[1]).iter(steps)
-        outputs = torch.cat(list(steps), 0)
-        return outputs
+            step_iter = Bar('Beam Search').iter(range(steps))
 
+        for step in step_iter:
+            if use_control:
+                control = controls[step].unsqueeze(0).unsqueeze(2)
+                control = control.repeat(1, 1, beam_size, 1)
+                # [1, batch_size, beam_size, control_dim]
+                control = control.view(1, batch_size * beam_size, self.control_dim)
+            else:
+                control = None
+
+            event = event.view(1, batch_size * beam_size)
+            hidden = hidden.view(self.gru_layers, batch_size * beam_size, self.hidden_dim)
+
+            output, hidden = self.forward(event, control, hidden)
+            output = self.output_fc_activation(output)
+
+            output = output.view(1, batch_size, beam_size, self.event_dim)
+            hidden = hidden.view(self.gru_layers, batch_size, beam_size, self.hidden_dim)
+
+            top_v, top_i = torch.log(output).topk(beam_size, -1)
+            # [1, batch_size, beam_size, beam_size]
+            top_v += score.view(1, batch_size, beam_size, 1)
+            top_v = top_v.view(1, batch_size, -1)   # [1, batch_size, beam_size * beam_size]
+            top_i = top_i.view(1, batch_size, -1)   # [1, batch_size, beam_size * beam_size]
+
+            _, bbi = top_v.topk(beam_size, -1)  # [1, batch_size, beam_size]
+            bbi = bbi.view(batch_size, -1)
+            bi = torch.arange(batch_size).long().view(batch_size, -1)
+            i = bbi / beam_size
+
+            score = top_v[0, bi, bbi]
+            hidden = hidden[:, bi, i, :]
+            beam[:, :, :step] = beam[bi, i, :step]
+            event = top_i[0, bi, bbi]
+            beam[bi, i, step] = event
+
+        best = beam[torch.arange(batch_size).long(), score.argmax(-1)]
+        best = best.contiguous().t()
+        return best
