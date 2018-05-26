@@ -146,7 +146,7 @@ class PerformanceRNN(nn.Module):
 
     def beam_search(self, init, steps, beam_size, controls=None, verbose=False):
         assert len(init.shape) == 2 and init.shape[1] == self.init_dim
-        assert self.event_dim > beam_size > 0 and steps > 0
+        assert self.event_dim >= beam_size > 0 and steps > 0
         
         batch_size = init.shape[0]
         use_control = controls is not None
