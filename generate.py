@@ -59,10 +59,15 @@ def getopt():
                       type='int',
                       default=0)
 
+    parser.add_option('-T', '--temperature',
+                      dest='temperature',
+                      type='float',
+                      default=1.0)
+
     parser.add_option('-z', '--init-zero',
                       dest='init_zero',
                       action='store_true',
-                      default=0)
+                      default=False)
 
     return parser.parse_args()[0]
 
@@ -79,6 +84,7 @@ greedy_ratio = opt.greedy_ratio
 control = opt.control
 use_beam_search = opt.beam_size > 0
 beam_size = opt.beam_size
+temperature = opt.temperature
 init_zero = opt.init_zero
 
 if use_beam_search:
@@ -136,6 +142,7 @@ print('Greedy ratio:', greedy_ratio)
 print('Beam size:', beam_size)
 print('Output directory:', output_dir)
 print('Controls:', control)
+print('Temperature:', temperature)
 print('Init zero:', init_zero)
 print('-' * 50)
 
@@ -159,10 +166,15 @@ else:
 
 if use_beam_search:
     outputs = model.beam_search(init, max_len, beam_size,
-                                controls=controls, verbose=True)
+                                controls=controls,
+                                temperature=temperature,
+                                verbose=True)
 else:
-    outputs = model.generate(init, max_len, verbose=True,
-                             controls=controls, greedy=greedy_ratio)
+    outputs = model.generate(init, max_len,
+                             controls=controls,
+                             greedy=greedy_ratio,
+                             temperature=temperature,
+                             verbose=True)
 
 outputs = outputs.cpu().numpy().T # [batch, steps]
 

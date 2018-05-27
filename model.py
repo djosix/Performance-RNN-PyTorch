@@ -48,10 +48,11 @@ class PerformanceRNN(nn.Module):
         nn.init.xavier_normal_(self.output_fc.weight)
         self.output_fc.bias.data.fill_(0.)
 
-    def _sample_event(self, output, greedy=True):
+    def _sample_event(self, output, greedy=True, temperature=1.0):
         if greedy:
             return output.argmax(-1)
         else:
+            output = output / temperature
             probs = self.output_fc_activation(output)
             return Categorical(probs).sample()
 
@@ -96,8 +97,8 @@ class PerformanceRNN(nn.Module):
             return controls[:steps]
         return controls.repeat(steps, 1, 1)
     
-    def generate(self, init, steps, events=None, controls=None,
-                 greedy=1.0, output_type='index', verbose=False):
+    def generate(self, init, steps, events=None, controls=None, greedy=1.0,
+                 temperature=1.0, output_type='index', verbose=False):
         # init [batch_size, init_dim]
         # events [steps, batch_size] indeces
         # controls [1 or steps, batch_size, control_dim]
@@ -128,7 +129,8 @@ class PerformanceRNN(nn.Module):
             output, hidden = self.forward(event, control, hidden)
 
             use_greedy = np.random.random() < greedy
-            event = self._sample_event(output, greedy=use_greedy)
+            event = self._sample_event(output, greedy=use_greedy,
+                                       temperature=temperature)
 
             if output_type == 'index':
                 outputs.append(event)
@@ -144,7 +146,8 @@ class PerformanceRNN(nn.Module):
         
         return torch.cat(outputs, 0)
 
-    def beam_search(self, init, steps, beam_size, controls=None, verbose=False):
+    def beam_search(self, init, steps, beam_size, controls=None,
+                    temperature=1.0, verbose=False):
         assert len(init.shape) == 2 and init.shape[1] == self.init_dim
         assert self.event_dim >= beam_size > 0 and steps > 0
         
@@ -182,7 +185,7 @@ class PerformanceRNN(nn.Module):
             hidden = hidden.view(self.gru_layers, batch_size * beam_size, self.hidden_dim)
 
             output, hidden = self.forward(event, control, hidden)
-            output = self.output_fc_activation(output)
+            output = self.output_fc_activation(output / temperature)
 
             output = output.view(1, batch_size, beam_size, self.event_dim)
             hidden = hidden.view(self.gru_layers, batch_size, beam_size, self.hidden_dim)
