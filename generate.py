@@ -36,13 +36,13 @@ def getopt():
     parser.add_option('-s', '--session',
                       dest='sess_path',
                       type='string',
-                      default='train.sess',
+                      default='save/train.sess',
                       help='session file containing the trained model')
 
     parser.add_option('-o', '--output-dir',
                       dest='output_dir',
                       type='string',
-                      default='generated/')
+                      default='output/')
 
     parser.add_option('-l', '--max-length',
                       dest='max_len',

@@ -31,7 +31,7 @@ def get_options():
     parser.add_option('-s', '--session',
                       dest='sess_path',
                       type='string',
-                      default='train.sess')
+                      default='save/train.sess')
 
     parser.add_option('-d', '--dataset',
                       dest='data_path',
