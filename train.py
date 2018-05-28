@@ -145,20 +145,30 @@ print('-' * 50)
 #========================================================================
 
 def load_session():
-    model = PerformanceRNN(**model_config).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    global sess_path, model_config, device, learning_rate, reset_optimizer
     try:
         sess = torch.load(sess_path)
-        model.load_state_dict(sess['model'])
-        if not reset_optimizer:
-            optimizer.load_state_dict(sess['optimizer'])
+        if 'model_config' in sess and sess['model_config'] != model_config:
+            model_config = sess['model_config']
+            print('Use session config instead:')
+            print(utils.dict2params(model_config))
+        model_state = sess['model_state']
+        optimizer_state = sess['optimizer_state']
         print('Session is loaded from', sess_path)
+        sess_loaded = True
     except:
         print('New session')
-        pass
+        sess_loaded = False
+    model = PerformanceRNN(**model_config).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    if sess_loaded:
+        model.load_state_dict(model_state)
+        if not reset_optimizer:
+            optimizer.load_state_dict(optimizer_state)
     return model, optimizer
 
 def load_dataset():
+    global data_path
     dataset = Dataset(data_path, verbose=True)
     dataset_size = len(dataset.samples)
     assert dataset_size > 0
@@ -180,11 +190,11 @@ print('-' * 50)
 #------------------------------------------------------------------------
 
 def save_model():
-    global model, optimizer
+    global model, optimizer, model_config, sess_path
     print('Saving to', sess_path)
-    state = {'model': model.state_dict(),
-             'optimizer': optimizer.state_dict()}
-    torch.save(state, sess_path)
+    torch.save({'model_config': model_config,
+                'model_state': model.state_dict(),
+                'optimizer_state': optimizer.state_dict()}, sess_path)
     print('Done saving')
 
 
@@ -233,7 +243,7 @@ try:
         if enable_logging:
             writer.add_scalar('loss', loss.item(), iteration)
             # writer.add_scalar('norm', norm.item(), iteration)
-            
+
         print(f'iter {iteration}, loss: {loss.item()}')
 
         if time.time() - last_saving_time > saving_interval:

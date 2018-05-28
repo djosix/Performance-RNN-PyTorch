@@ -151,9 +151,12 @@ print('-' * 50)
 # Generating
 #========================================================================
 
-model = PerformanceRNN(**model_config).to(device)
-model.load_state_dict(torch.load(sess_path)['model'])
+state = torch.load(sess_path)
+model = PerformanceRNN(**state['model_config']).to(device)
+model.load_state_dict(state['model_state'])
 model.eval()
+print(model)
+print('-' * 50)
 
 # Don't build the graph
 for parameter in model.parameters():
