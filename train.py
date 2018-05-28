@@ -10,7 +10,6 @@ import sys
 import time
 import optparse
 
-from tensorboardX import SummaryWriter
 
 import utils
 import config
@@ -87,6 +86,11 @@ def get_options():
                       dest='reset_optimizer',
                       action='store_true',
                       default=False)
+                      
+    parser.add_option('-L', '--enable-logging',
+                      dest='enable_logging',
+                      action='store_true',
+                      default=False)
 
     return parser.parse_args()[0]
 
@@ -106,6 +110,7 @@ use_transposition = options.use_transposition
 control_ratio = options.control_ratio
 teacher_forcing_ratio = options.teacher_forcing_ratio
 reset_optimizer = options.reset_optimizer
+enable_logging = options.enable_logging
 
 event_dim = EventSeq.dim()
 control_dim = ControlSeq.dim()
@@ -130,6 +135,7 @@ print('Control ratio:', control_ratio)
 print('Teacher forcing ratio:', teacher_forcing_ratio)
 print('Random transposition:', use_transposition)
 print('Reset optimizer:', reset_optimizer)
+print('Enabling logging:', enable_logging)
 print('Device:', device)
 print('-' * 50)
 
@@ -186,7 +192,10 @@ def save_model():
 # Training
 #========================================================================
 
-writer = SummaryWriter()
+if enable_logging:
+    from tensorboardX import SummaryWriter
+    writer = SummaryWriter()
+
 last_saving_time = time.time()
 loss_function = nn.CrossEntropyLoss()
 
@@ -215,14 +224,16 @@ try:
         loss = loss_function(outputs.view(-1, event_dim), events.view(-1))
         model.zero_grad()
         loss.backward()
-        writer.add_scalar('loss', loss.item(), iteration)
 
         # norm = utils.compute_gradient_norm(model.parameters())
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        # writer.add_scalar('norm', norm.item(), iteration)
         
         optimizer.step()
 
+        if enable_logging:
+            writer.add_scalar('loss', loss.item(), iteration)
+            # writer.add_scalar('norm', norm.item(), iteration)
+            
         print(f'iter {iteration}, loss: {loss.item()}')
 
         if time.time() - last_saving_time > saving_interval:
