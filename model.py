@@ -98,7 +98,7 @@ class PerformanceRNN(nn.Module):
         return controls.repeat(steps, 1, 1)
     
     def generate(self, init, steps, events=None, controls=None, greedy=1.0,
-                 temperature=1.0, output_type='index', verbose=False):
+                 temperature=1.0, teacher_forcing_ratio=1.0, output_type='index', verbose=False):
         # init [batch_size, init_dim]
         # events [steps, batch_size] indeces
         # controls [1 or steps, batch_size, control_dim]
@@ -142,7 +142,8 @@ class PerformanceRNN(nn.Module):
                 assert False
 
             if use_teacher_forcing and step < steps - 1: # avoid last one
-                event = events[step].unsqueeze(0)
+                if np.random.random() <= teacher_forcing_ratio:
+                    event = events[step].unsqueeze(0)
         
         return torch.cat(outputs, 0)
 

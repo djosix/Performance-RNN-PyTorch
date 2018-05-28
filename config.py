@@ -20,5 +20,6 @@ train = {
     'window_size': 200,
     'stride_size': 10,
     'use_transposition': False,
-    'control_ratio': 1.0
+    'control_ratio': 1.0,
+    'teacher_forcing_ratio': 1.0
 }

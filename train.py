@@ -68,6 +68,11 @@ def get_options():
                       type='float',
                       default=config.train['control_ratio'])
 
+    parser.add_option('-T', '--teacher-forcing-ratio',
+                      dest='teacher_forcing_ratio',
+                      type='float',
+                      default=config.train['teacher_forcing_ratio'])
+
     parser.add_option('-t', '--use-transposition',
                       dest='use_transposition',
                       action='store_true',
@@ -99,6 +104,7 @@ window_size = options.window_size
 stride_size = options.stride_size
 use_transposition = options.use_transposition
 control_ratio = options.control_ratio
+teacher_forcing_ratio = options.teacher_forcing_ratio
 reset_optimizer = options.reset_optimizer
 
 event_dim = EventSeq.dim()
@@ -121,6 +127,7 @@ print('Batch size:', batch_size)
 print('Window size:', window_size)
 print('Stride size:', stride_size)
 print('Control ratio:', control_ratio)
+print('Teacher forcing ratio:', teacher_forcing_ratio)
 print('Random transposition:', use_transposition)
 print('Reset optimizer:', reset_optimizer)
 print('Device:', device)
@@ -201,7 +208,8 @@ try:
             controls = None
 
         init = torch.randn(batch_size, model.init_dim).to(device)
-        outputs = model.generate(init, window_size, events[:-1], controls, output_type='logit')
+        outputs = model.generate(init, window_size, events=events[:-1], controls=controls,
+                                 teacher_forcing_ratio=teacher_forcing_ratio, output_type='logit')
         assert outputs.shape[:2] == events.shape[:2]
 
         loss = loss_function(outputs.view(-1, event_dim), events.view(-1))
