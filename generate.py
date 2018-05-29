@@ -158,26 +158,23 @@ model.eval()
 print(model)
 print('-' * 50)
 
-# Don't build the graph
-for parameter in model.parameters():
-    parameter.requires_grad_(False)
-
 if init_zero:
     init = torch.zeros(batch_size, model.init_dim).to(device)
 else:
     init = torch.randn(batch_size, model.init_dim).to(device)
 
-if use_beam_search:
-    outputs = model.beam_search(init, max_len, beam_size,
+with torch.no_grad():
+    if use_beam_search:
+        outputs = model.beam_search(init, max_len, beam_size,
+                                    controls=controls,
+                                    temperature=temperature,
+                                    verbose=True)
+    else:
+        outputs = model.generate(init, max_len,
                                 controls=controls,
+                                greedy=greedy_ratio,
                                 temperature=temperature,
                                 verbose=True)
-else:
-    outputs = model.generate(init, max_len,
-                             controls=controls,
-                             greedy=greedy_ratio,
-                             temperature=temperature,
-                             verbose=True)
 
 outputs = outputs.cpu().numpy().T # [batch, steps]
 
