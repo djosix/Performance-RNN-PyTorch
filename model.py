@@ -171,7 +171,7 @@ class PerformanceRNN(nn.Module):
         
         step_iter = range(steps)
         if verbose:
-            step_iter = Bar('Beam Search').iter(range(steps))
+            step_iter = Bar('Beam Search').iter(step_iter)
 
         for step in step_iter:
             if use_control:
