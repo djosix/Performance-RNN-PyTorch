@@ -80,6 +80,9 @@ class PerformanceRNN(nn.Module):
         output = self.output_fc(output)
         return output, hidden
     
+    def get_primary_event(self, batch_size):
+        return torch.LongTensor([[self.primary_event] * batch_size]).to(device)
+    
     def init_to_hidden(self, init):
         # [batch_size, init_dim]
         batch_size = init.shape[0]
@@ -113,7 +116,7 @@ class PerformanceRNN(nn.Module):
             assert events.shape[0] >= steps - 1
             events = events[:steps-1]
 
-        event = torch.tensor([[self.primary_event] * batch_size]).to(device)
+        event = self.get_primary_event(batch_size)
         use_control = controls is not None
         if use_control:
             controls = self.expand_controls(controls, steps)
@@ -162,7 +165,7 @@ class PerformanceRNN(nn.Module):
         hidden = hidden.unsqueeze(2).repeat(1, 1, beam_size, 1)
         # [gru_layers, batch_size, beam_size, hidden_dim]
 
-        event = torch.tensor([[self.primary_event] * batch_size]).to(device)
+        event = self.get_primary_event(batch_size)
         event = event.unsqueeze(-1).repeat(1, 1, beam_size)
         # [1, batch_size, beam_size]
 
