@@ -119,12 +119,12 @@ model_params = utils.params2dict(options.model_params)
 model_config.update(model_params)
 device = config.device
 
-print('-' * 50)
+print('-' * 70)
 
 print('Session path:', sess_path)
 print('Dataset path:', data_path)
 print('Saving interval:', saving_interval)
-print('-' * 50)
+print('-' * 70)
 
 print('Hyperparameters:', utils.dict2params(model_config))
 print('Learning rate:', learning_rate)
@@ -137,7 +137,7 @@ print('Random transposition:', use_transposition)
 print('Reset optimizer:', reset_optimizer)
 print('Enabling logging:', enable_logging)
 print('Device:', device)
-print('-' * 50)
+print('-' * 70)
 
 
 #========================================================================
@@ -179,13 +179,13 @@ print('Loading session')
 model, optimizer = load_session()
 print(model)
 
-print('-' * 50)
+print('-' * 70)
 
 print('Loading dataset')
 dataset = load_dataset()
 print(dataset)
 
-print('-' * 50)
+print('-' * 70)
 
 #------------------------------------------------------------------------
 

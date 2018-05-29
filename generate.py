@@ -134,7 +134,7 @@ assert max_len > 0, 'either max length or control sequence length should be give
 
 #------------------------------------------------------------------------
 
-print('-' * 50)
+print('-' * 70)
 print('Session:', sess_path)
 print('Batch size:', batch_size)
 print('Max length:', max_len)
@@ -144,7 +144,7 @@ print('Output directory:', output_dir)
 print('Controls:', control)
 print('Temperature:', temperature)
 print('Init zero:', init_zero)
-print('-' * 50)
+print('-' * 70)
 
 
 #========================================================================
@@ -156,7 +156,7 @@ model = PerformanceRNN(**state['model_config']).to(device)
 model.load_state_dict(state['model_state'])
 model.eval()
 print(model)
-print('-' * 50)
+print('-' * 70)
 
 if init_zero:
     init = torch.zeros(batch_size, model.init_dim).to(device)
