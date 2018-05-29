@@ -30,7 +30,7 @@ MIN_NOTE_LENGTH = BEAT_LENGTH / 2
 # ControlSeq ----------------------------------------------------------------------
 
 DEFAULT_WINDOW_SIZE = BEAT_LENGTH * 4
-DEFAULT_NOTE_DENSITY_BINS = 2 ** np.arange(6)
+DEFAULT_NOTE_DENSITY_BINS = np.arange(12) * 3 + 1
 
 
 #==================================================================================
