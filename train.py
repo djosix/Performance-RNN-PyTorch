@@ -153,7 +153,7 @@ def load_session():
             print('Use session config instead:')
             print(utils.dict2params(model_config))
         model_state = sess['model_state']
-        optimizer_state = sess['optimizer_state']
+        optimizer_state = sess['model_optimizer_state']
         print('Session is loaded from', sess_path)
         sess_loaded = True
     except:
@@ -194,7 +194,7 @@ def save_model():
     print('Saving to', sess_path)
     torch.save({'model_config': model_config,
                 'model_state': model.state_dict(),
-                'optimizer_state': optimizer.state_dict()}, sess_path)
+                'model_optimizer_state': optimizer.state_dict()}, sess_path)
     print('Done saving')
 
 
