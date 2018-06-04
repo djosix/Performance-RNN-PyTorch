@@ -195,7 +195,7 @@ def train_adversarial(sess_path, batch_data_generator,
         discriminator_optimizer_state = adv_state['discriminator_optimizer_state']
         print('-' * 70)
         print('Session is loaded from', sess_path)
-        optimizers_loaded = True
+        loaded_from_session = True
 
     else:
         model_sess = torch.load(model_load_path)
@@ -204,7 +204,7 @@ def train_adversarial(sess_path, batch_data_generator,
         discriminator_sess = torch.load(discriminator_load_path)
         discriminator_config = discriminator_sess['discriminator_config']
         discriminator_state = discriminator_sess['discriminator_state']
-        optimizers_loaded = False
+        loaded_from_session = False
 
     model = PerformanceRNN(**model_config)
     model.load_state_dict(model_state)
@@ -217,7 +217,7 @@ def train_adversarial(sess_path, batch_data_generator,
     discriminator_optimizer = discriminator_optimizer_class(discriminator.parameters(),
                                                             lr=discriminator_learning_rate)
 
-    if optimizers_loaded:
+    if loaded_from_session:
         if not reset_model_optimizer:
             model_optimizer.load_state_dict(model_optimizer_state)
         if not reset_discriminator_optimizer:
@@ -243,10 +243,10 @@ def train_adversarial(sess_path, batch_data_generator,
         print('discriminator_learning_rate:', discriminator_learning_rate)
         print('reset_discriminator_optimizer:', reset_discriminator_optimizer)
         print('-' * 70)
-        print(f'Generator from "{model_load_path}"')
+        print(f'Generator from "{sess_path if loaded_from_session else model_load_path}"')
         print(model)
         print('-' * 70)
-        print(f'Discriminator from "{discriminator_load_path}"')
+        print(f'Discriminator from "{sess_path if loaded_from_session else discriminator_load_path}"')
         print(discriminator)
         print('-' * 70)
     
