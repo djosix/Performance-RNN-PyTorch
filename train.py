@@ -235,14 +235,14 @@ try:
         model.zero_grad()
         loss.backward()
 
-        # norm = utils.compute_gradient_norm(model.parameters())
+        norm = utils.compute_gradient_norm(model.parameters())
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         
         optimizer.step()
 
         if enable_logging:
             writer.add_scalar('loss', loss.item(), iteration)
-            # writer.add_scalar('norm', norm.item(), iteration)
+            writer.add_scalar('norm', norm.item(), iteration)
 
         print(f'iter {iteration}, loss: {loss.item()}')
 
