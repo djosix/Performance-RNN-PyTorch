@@ -341,6 +341,7 @@ def train_adversarial(sess_path, batch_data_generator,
                         q_values.append(q_value)
                 
                 q_values = torch.cat(q_values, 0) # [steps, batch_size]
+                q_values = q_values - q_values.mean().detach() # baseline
                 generated = torch.cat(generated, 0) # [steps, batch_size]
                 outputs = torch.cat(outputs, 0) # [steps, batch_size, event_dim]
 
