@@ -35,7 +35,7 @@ class PerformanceRNN(nn.Module):
 
         self.gru = nn.GRU(self.input_dim, self.hidden_dim,
                           num_layers=gru_layers, dropout=gru_dropout)
-        self.output_fc = nn.Linear(self.hidden_dim, self.output_dim)
+        self.output_fc = nn.Linear(hidden_dim * gru_layers, self.output_dim)
         self.output_fc_activation = nn.Softmax(dim=-1)
 
         self._initialize_weights()
@@ -76,7 +76,8 @@ class PerformanceRNN(nn.Module):
         input = self.concat_input_fc_activation(input)
 
         _, hidden = self.gru(input, hidden)
-        output = hidden.sum(0).unsqueeze(0)
+        output = hidden.permute(1, 0, 2).contiguous()
+        output = output.view(batch_size, -1).unsqueeze(0)
         output = self.output_fc(output)
         return output, hidden
     
