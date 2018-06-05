@@ -1,6 +1,6 @@
 import os
 import torch
-import itertools
+import itertools, os
 import numpy as np
 from progress.bar import Bar
 
@@ -13,6 +13,7 @@ from sequence import EventSeq, ControlSeq
 
 class Dataset:
     def __init__(self, root, verbose=False):
+        assert os.path.isdir(root), root
         paths = utils.find_files_by_extensions(root, ['.data'])
         self.root = root
         self.samples = []
