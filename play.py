@@ -22,6 +22,12 @@ import numpy as np
 
 # pylint: disable=E1101
 
+entities = []
+lock = threading.Lock()
+done = False
+
+width = 1024
+height = 768
 
 #====================================================================
 # Display
@@ -160,13 +166,6 @@ def play(midi_files, sound_font_path):
 
 
 if __name__ == '__main__':
-
-    entities = []
-    lock = threading.Lock()
-    done = False
-
-    width = 1024
-    height = 768
 
     try:
         sound_font_path = sys.argv[1]
