@@ -1,4 +1,8 @@
+![generated-sample-sheet-music](https://user-images.githubusercontent.com/17045050/42017029-3b4f7060-7ae0-11e8-829b-6d6b8b829759.png)
+
 # Performance RNN - PyTorch
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 PyTorch implementation of Performance RNN, inspired by *Ian Simon and Sageev Oore. "Performance RNN: Generating Music with Expressive
 Timing and Dynamics." Magenta Blog, 2017.*
@@ -6,6 +10,12 @@ Timing and Dynamics." Magenta Blog, 2017.*
 
 This model is not implemented in the official way!
 
+## Generated Samples
+
+- [Random C Major MIDI](https://drive.google.com/open?id=1mZtkpsu1yA8oOkE_1b2jyFsvCW70FiKU)
+- [Random C Major MP3](https://drive.google.com/open?id=1UqyJ9e58AOimFeY1xoCPyedTz-g2fUxv)
+- [Random C Minor MIDI](https://drive.google.com/open?id=1lIVCIT7INuTa-HKrgPzewrgCbgwCRRa1)
+- [Random C Minor MP3](https://drive.google.com/open?id=1pVg3Mg2pSq8VHJRJrgNUZybpsErjzpjF)
 
 ## Directory Structure
 
@@ -30,7 +40,7 @@ This model is not implemented in the official way!
 ```
 
 
-## Getting Started
+## Instructions
 
 - Download datasets
 
@@ -74,7 +84,14 @@ This model is not implemented in the official way!
     # Use control sequence from processed data
     python3 generate.py -s save/test.sess -c dataset/processed/some/processed.data
     ```
+    
+    ![generated-sample-1](https://user-images.githubusercontent.com/17045050/42017026-37dfd7b2-7ae0-11e8-99a9-75d27510f44b.png)
+    
+    ![generated-sample-2](https://user-images.githubusercontent.com/17045050/42017017-337ce0a2-7ae0-11e8-8193-12ea539af424.png)
 
+## Pretrained Model
+
+- [ecomp.sess - trained with MIDI files from International Piano-e-Competition](https://drive.google.com/open?id=1daT6XRQUTS6AQ5jyRPqzowXia-zVqg6m)
 
 ## Requirements
 
