@@ -2,7 +2,7 @@
 *.pyc
 .DS_Store
 *.mid
-*.midi
+*.MID
 *.sess
 *.data
 runs/
