@@ -241,8 +241,8 @@ try:
         optimizer.step()
 
         if enable_logging:
-            writer.add_scalar('loss', loss.item(), iteration)
-            writer.add_scalar('norm', norm.item(), iteration)
+            writer.add_scalar('model/loss', loss.item(), iteration)
+            writer.add_scalar('model/norm', norm.item(), iteration)
 
         print(f'iter {iteration}, loss: {loss.item()}')
 
