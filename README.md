@@ -100,6 +100,10 @@ This model is not implemented in the official way!
 - [ecomp.sess](https://drive.google.com/open?id=1daT6XRQUTS6AQ5jyRPqzowXia-zVqg6m)
     - default configuration
     - dataset: [International Piano-e-Competition, recorded MIDI files](http://www.piano-e-competition.com/)    
+- [ecomp_w500.sess](https://drive.google.com/open?id=1jf5j2cWppXVeSXhTuiNfAFEyWFIaNZ6f)
+    - window_size: 500
+    - control_ratio: 0.7
+    - dataset: [International Piano-e-Competition, recorded MIDI files](http://www.piano-e-competition.com/)
 
 ## Requirements
 
