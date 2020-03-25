@@ -1,8 +1,11 @@
 import torch
 import numpy as np
-import os, sys, optparse
+import os
+import sys
+import optparse
 
-import config, utils
+import config
+import utils
 from config import device, model as model_config
 from model import PerformanceRNN
 from sequence import EventSeq, Control, ControlSeq
@@ -10,9 +13,9 @@ from sequence import EventSeq, Control, ControlSeq
 # pylint: disable=E1101,E1102
 
 
-#========================================================================
+# ========================================================================
 # Settings
-#========================================================================
+# ========================================================================
 
 def getopt():
     parser = optparse.OptionParser()
@@ -59,6 +62,11 @@ def getopt():
                       type='int',
                       default=0)
 
+    parser.add_option('-S', '--stochastic-beam-search',
+                      dest='stochastic_beam_search',
+                      action='store_true',
+                      default=False)
+
     parser.add_option('-T', '--temperature',
                       dest='temperature',
                       type='float',
@@ -74,7 +82,7 @@ def getopt():
 
 opt = getopt()
 
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 output_dir = opt.output_dir
 sess_path = opt.sess_path
@@ -83,6 +91,7 @@ max_len = opt.max_len
 greedy_ratio = opt.greedy_ratio
 control = opt.control
 use_beam_search = opt.beam_size > 0
+stochastic_beam_search = opt.stochastic_beam_search
 beam_size = opt.beam_size
 temperature = opt.temperature
 init_zero = opt.init_zero
@@ -118,7 +127,7 @@ if control is not None:
             assert pitch_histogram.size == 12
             assert np.all(pitch_histogram >= 0)
             pitch_histogram = pitch_histogram / pitch_histogram.sum() \
-                              if pitch_histogram.sum() else np.ones(12) / 12
+                if pitch_histogram.sum() else np.ones(12) / 12
         note_density = int(note_density)
         assert note_density in range(len(ControlSeq.note_density_bins))
         control = Control(pitch_histogram, note_density)
@@ -132,7 +141,7 @@ else:
 
 assert max_len > 0, 'either max length or control sequence length should be given'
 
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 print('-' * 70)
 print('Session:', sess_path)
@@ -140,6 +149,7 @@ print('Batch size:', batch_size)
 print('Max length:', max_len)
 print('Greedy ratio:', greedy_ratio)
 print('Beam size:', beam_size)
+print('Beam search stochastic:', stochastic_beam_search)
 print('Output directory:', output_dir)
 print('Controls:', control)
 print('Temperature:', temperature)
@@ -147,11 +157,11 @@ print('Init zero:', init_zero)
 print('-' * 70)
 
 
-#========================================================================
+# ========================================================================
 # Generating
-#========================================================================
+# ========================================================================
 
-state = torch.load(sess_path)
+state = torch.load(sess_path, map_location=device)
 model = PerformanceRNN(**state['model_config']).to(device)
 model.load_state_dict(state['model_state'])
 model.eval()
@@ -168,20 +178,21 @@ with torch.no_grad():
         outputs = model.beam_search(init, max_len, beam_size,
                                     controls=controls,
                                     temperature=temperature,
+                                    stochastic=stochastic_beam_search,
                                     verbose=True)
     else:
         outputs = model.generate(init, max_len,
-                                controls=controls,
-                                greedy=greedy_ratio,
-                                temperature=temperature,
-                                verbose=True)
+                                 controls=controls,
+                                 greedy=greedy_ratio,
+                                 temperature=temperature,
+                                 verbose=True)
 
-outputs = outputs.cpu().numpy().T # [batch, steps]
+outputs = outputs.cpu().numpy().T  # [batch, steps]
 
 
-#========================================================================
+# ========================================================================
 # Saving
-#========================================================================
+# ========================================================================
 
 os.makedirs(output_dir, exist_ok=True)
 
