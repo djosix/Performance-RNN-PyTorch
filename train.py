@@ -203,7 +203,7 @@ def save_model():
 #========================================================================
 
 if enable_logging:
-    from tensorboardX import SummaryWriter
+    from torch.utils.tensorboard import SummaryWriter
     writer = SummaryWriter()
 
 last_saving_time = time.time()

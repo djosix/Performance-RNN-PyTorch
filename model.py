@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Categorical
+from torch.distributions import Categorical, Gumbel
 
+from collections import namedtuple
 import numpy as np
 from progress.bar import Bar
 from config import device
@@ -152,66 +153,100 @@ class PerformanceRNN(nn.Module):
         return torch.cat(outputs, 0)
 
     def beam_search(self, init, steps, beam_size, controls=None,
-                    temperature=1.0, verbose=False):
+                    temperature=1.0, stochastic=False, verbose=False):
         assert len(init.shape) == 2 and init.shape[1] == self.init_dim
         assert self.event_dim >= beam_size > 0 and steps > 0
         
         batch_size = init.shape[0]
-        use_control = controls is not None
-        if use_control:
-            controls = self.expand_controls(controls, steps)
-
-        init = torch.randn(batch_size, self.init_dim).to(device)
-        hidden = self.init_to_hidden(init)
-        hidden = hidden.unsqueeze(2).repeat(1, 1, beam_size, 1)
-        # [gru_layers, batch_size, beam_size, hidden_dim]
-
-        event = self.get_primary_event(batch_size)
-        event = event.unsqueeze(-1).repeat(1, 1, beam_size)
-        # [1, batch_size, beam_size]
-
-        beam = torch.zeros(batch_size, beam_size, steps).long().to(device)
-        score = torch.zeros(batch_size, beam_size).to(device)
+        current_beam_size = 1
         
+        if controls is not None:
+            controls = self.expand_controls(controls, steps) # [steps, batch_size, control_dim]
+
+        # Initial hidden weights
+        hidden = self.init_to_hidden(init) # [gru_layers, batch_size, hidden_size]
+        hidden = hidden[:, :, None, :] # [gru_layers, batch_size, 1, hidden_size]
+        hidden = hidden.repeat(1, 1, current_beam_size, 1) # [gru_layers, batch_size, beam_size, hidden_dim]
+
+        
+        # Initial event
+        event = self.get_primary_event(batch_size) # [1, batch]
+        event = event[:, :, None].repeat(1, 1, current_beam_size) # [1, batch, 1]
+
+        # [batch, beam, 1]   event sequences of beams
+        beam_events = event[0, :, None, :].repeat(1, current_beam_size, 1)
+
+        # [batch, beam] log probs sum of beams
+        beam_log_prob = torch.zeros(batch_size, current_beam_size).to(device)
+        
+        if stochastic:
+            # [batch, beam] Gumbel perturbed log probs of beams
+            beam_log_prob_perturbed = torch.zeros(batch_size, current_beam_size).to(device)
+            beam_z = torch.full((batch_size, beam_size), float('inf'))
+            gumbel_dist = Gumbel(0, 1)
+
         step_iter = range(steps)
         if verbose:
-            step_iter = Bar('Beam Search').iter(step_iter)
+            step_iter = Bar(['', 'Stochastic '][stochastic] + 'Beam Search').iter(step_iter)
 
         for step in step_iter:
-            if use_control:
-                control = controls[step].unsqueeze(0).unsqueeze(2)
-                control = control.repeat(1, 1, beam_size, 1)
-                # [1, batch_size, beam_size, control_dim]
-                control = control.view(1, batch_size * beam_size, self.control_dim)
+            if controls is not None:
+                control = controls[step, None, :, None, :] # [1, batch, 1, control]
+                control = control.repeat(1, 1, current_beam_size, 1) # [1, batch, beam, control]
+                control = control.view(1, batch_size * current_beam_size, self.control_dim) # [1, batch*beam, control]
             else:
                 control = None
+            
+            event = event.view(1, batch_size * current_beam_size) # [1, batch*beam0]
+            hidden = hidden.view(self.gru_layers, batch_size * current_beam_size, self.hidden_dim) # [grus, batch*beam, hid]
 
-            event = event.view(1, batch_size * beam_size)
-            hidden = hidden.view(self.gru_layers, batch_size * beam_size, self.hidden_dim)
+            logits, hidden = self.forward(event, control, hidden)
+            hidden = hidden.view(self.gru_layers, batch_size, current_beam_size, self.hidden_dim) # [grus, batch, cbeam, hid]
+            logits = (logits / temperature).view(1, batch_size, current_beam_size, self.event_dim) # [1, batch, cbeam, out]
+            
+            beam_log_prob_expand = logits + beam_log_prob[None, :, :, None] # [1, batch, cbeam, out]
+            beam_log_prob_expand_batch = beam_log_prob_expand.view(1, batch_size, -1) # [1, batch, cbeam*out]
+            
+            if stochastic:
+                beam_log_prob_expand_perturbed = beam_log_prob_expand + gumbel_dist.sample(beam_log_prob_expand.shape)
+                beam_log_prob_Z, _ = beam_log_prob_expand_perturbed.max(-1) # [1, batch, cbeam]
+                # print(beam_log_prob_Z)
+                beam_log_prob_expand_perturbed_normalized = beam_log_prob_expand_perturbed
+                # beam_log_prob_expand_perturbed_normalized = -torch.log(
+                #     torch.exp(-beam_log_prob_perturbed[None, :, :, None])
+                #     - torch.exp(-beam_log_prob_Z[:, :, :, None])
+                #     + torch.exp(-beam_log_prob_expand_perturbed)) # [1, batch, cbeam, out]
+                # beam_log_prob_expand_perturbed_normalized = beam_log_prob_perturbed[None, :, :, None] + beam_log_prob_expand_perturbed # [1, batch, cbeam, out]
+                
+                beam_log_prob_expand_perturbed_normalized_batch = \
+                    beam_log_prob_expand_perturbed_normalized.view(1, batch_size, -1) # [1, batch, cbeam*out]
+                _, top_indices = beam_log_prob_expand_perturbed_normalized_batch.topk(beam_size, -1) # [1, batch, cbeam]
+                
+                beam_log_prob_perturbed = \
+                    torch.gather(beam_log_prob_expand_perturbed_normalized_batch, -1, top_indices)[0] # [batch, beam]
 
-            output, hidden = self.forward(event, control, hidden)
-            output = self.output_fc_activation(output / temperature)
+            else:
+                _, top_indices = beam_log_prob_expand_batch.topk(beam_size, -1)
+            
+            beam_log_prob = torch.gather(beam_log_prob_expand_batch, -1, top_indices)[0] # [batch, beam]
+            
+            beam_index_old = torch.arange(current_beam_size)[None, None, :, None] # [1, 1, cbeam, 1]
+            beam_index_old = beam_index_old.repeat(1, batch_size, 1, self.output_dim) # [1, batch, cbeam, out]
+            beam_index_old = beam_index_old.view(1, batch_size, -1) # [1, batch, cbeam*out]
+            beam_index_new = torch.gather(beam_index_old, -1, top_indices)
+            
+            hidden = torch.gather(hidden, 2, beam_index_new[:, :, :, None].repeat(4, 1, 1, 1024))
+            
+            event_index = torch.arange(self.output_dim)[None, None, None, :] # [1, 1, 1, out]
+            event_index = event_index.repeat(1, batch_size, current_beam_size, 1) # [1, batch, cbeam, out]
+            event_index = event_index.view(1, batch_size, -1) # [1, batch, cbeam*out]
+            event = torch.gather(event_index, -1, top_indices) # [1, batch, cbeam*out]
+            
+            beam_events = torch.gather(beam_events[None], 2, beam_index_new.unsqueeze(-1).repeat(1, 1, 1, beam_events.shape[-1]))
+            beam_events = torch.cat([beam_events, event.unsqueeze(-1)], -1)[0]
+            
+            current_beam_size = beam_size
 
-            output = output.view(1, batch_size, beam_size, self.event_dim)
-            hidden = hidden.view(self.gru_layers, batch_size, beam_size, self.hidden_dim)
-
-            top_v, top_i = torch.log(output).topk(beam_size, -1)
-            # [1, batch_size, beam_size, beam_size]
-            top_v += score.view(1, batch_size, beam_size, 1)
-            top_v = top_v.view(1, batch_size, -1)   # [1, batch_size, beam_size * beam_size]
-            top_i = top_i.view(1, batch_size, -1)   # [1, batch_size, beam_size * beam_size]
-
-            _, bbi = top_v.topk(beam_size, -1)  # [1, batch_size, beam_size]
-            bbi = bbi.view(batch_size, -1)
-            bi = torch.arange(batch_size).long().view(batch_size, -1)
-            i = bbi / beam_size
-
-            score = top_v[0, bi, bbi]
-            hidden = hidden[:, bi, i, :]
-            beam[:, :, :step] = beam[bi, i, :step]
-            event = top_i[0, bi, bbi]
-            beam[bi, i, step] = event
-
-        best = beam[torch.arange(batch_size).long(), score.argmax(-1)]
+        best = beam_events[torch.arange(batch_size).long(), beam_log_prob.argmax(-1)]
         best = best.contiguous().t()
         return best
